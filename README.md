@@ -6,8 +6,7 @@ Tämä arkisto sisältää Kit-IT-projektin taustakoodin. Taustaosa käsittelee 
 - [Käytetyt tekniikat](#teknologiat-käytetty)
 - [Asennusohjeet](#asennusohjeet)
 - [Configuration](#configuration)
--
-[Projektin suorittaminen](#running-the-projekt)
+- [Projektin suorittaminen](#running-the-projekt)
 - [API-dokumentaatio](#api-documentation)
 - [Osallistuminen](#contributing)
 
@@ -16,9 +15,16 @@ Tämä arkisto sisältää Kit-IT-projektin taustakoodin. Taustaosa käsittelee 
 - MongoDB / MySQL / PostgreSQL (valitse käyttämäsi)
 - JWT (todennusta varten)
 - Muut käytetyt tekniikat (luettelo pinosi)
+  
 ## Asennusohjeet
 
-1. Kloonaa arkisto:
-  ```bash
+Kloonaa arkisto:
+  ```
    git clone <repository-url>
    cd backend
+  ```
+
+## Käynnistä tietokanta
+   ```
+   npx run dev
+   ```
