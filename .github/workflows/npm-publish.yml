@@ -1,25 +1,38 @@
-# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
-# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
-
-name: Node.js Package
+name: CI/CD for Kit-IT Backend
 
 on:
-  release:
-    types: [created]
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  # Linting and testing job
+  lint-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Set up Node.js environment
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
-      - run: npm test
 
+      # Install dependencies
+      - run: npm ci
+
+      # Lint the code
+      - name: Run ESLint
+        run: npm run lint
+
+      # Run tests
+      - name: Run Tests
+        run: npm test
+
+  # Deployment job (e.g., publishing the package)
   publish-npm:
-    needs: build
+    needs: lint-and-test  # Ensures linting and tests pass before publishing
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,4 +43,14 @@ jobs:
       - run: npm ci
       - run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
+
+  # Optional deployment to production (API deployment example)
+  deploy-api:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy API
+        run: |
+          echo "Deploying API to production..."
+          # Add API deployment commands (e.g., Docker, SSH)
