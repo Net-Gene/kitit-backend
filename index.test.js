@@ -1,28 +1,28 @@
-const request = require('supertest');
-const app = require('./index');  // Varmista, että sovelluksesi on viety index.js:stä
+// Pilkkaa pg (PostgreSQL) -kirjastoa
 
-
-describe('GET /', () => {
-  let server;
-
-  beforeAll(() => {
-    // Käynnistä palvelin ennen kaikkia testejä
-
-    server = app.listen(3001);  // Varmista, että palvelin kuuntelee
-
+jest.mock('pg', () => {
+    return {
+      Pool: jest.fn().mockImplementation(() => {
+        return {
+          query: jest.fn().mockResolvedValue({ rows: [{ id: 1, name: 'Product 1' }] }),
+        };
+      }),
+    };
   });
+  
+  const request = require('supertest');
+  const app = require('./index'); // Tuo Express-sovelluksesi
 
-  afterAll((done) => {
-    // Sulje palvelin kaikkien testien jälkeen
-
-    server.close(done);
+  
+  describe('GET /', () => {
+    it('should return a 200 status and products data', async () => {
+      const response = await request(app).get('/');
+  
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.length).toBeGreaterThan(0);
+      expect(response.body[0]).toHaveProperty('id', 1);
+      expect(response.body[0]).toHaveProperty('name', 'Product 1');
+    });
   });
-
-  it('should return a 200 status and products data', async () => {
-    const response = await request(server).get('/');  // Käytä palvelinesiintymää suoraan
-
-    expect(response.status).toBe(200);
-    expect(Array.isArray(response.body)).toBe(true);  // Olettaen, että tuotteet palautetaan joukkona
-
-  });
-});
+  
