@@ -4,10 +4,10 @@ const cors = require('cors');
 const { Pool } = require('pg');
 
 const app = express();
-app.use(cors());  // Enable CORS on all requests
+app.use(cors());  // Ota CORS käyttöön kaikissa pyynnöissä
 
 
-app.use(express.json());  // Add this to parse incoming JSON requests
+app.use(express.json());  //Lisää tämä saapuvien JSON-pyyntöjen jäsentämiseen
 
 
 
@@ -20,8 +20,7 @@ app.get('/', async (req, res) => {
   res.send(result.rows);
 });
 
-// Add Product Logic to cart
-
+//Lisää tuotelogiikka ostoskoriin
 
 app.post('/add-to-cart', async (req, res) => {
   const { productId, quantity, userId } = req.body;
@@ -107,7 +106,7 @@ app.post('/add-to-cart', async (req, res) => {
 
 
 
-// Get orders
+//Hanki tilauksia
 
 app.get('/orders', async (req, res) => {
   try {
@@ -135,7 +134,12 @@ app.get('/orders', async (req, res) => {
   }
 });
 
+//Käynnistä palvelin vain, jos emme ole testiympäristössä
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(3001, () => {
+    console.log('Server running on http://localhost:3001');
+  });
+}
 
-app.listen(3001, () => {
-  console.log('Server running on http://localhost:3001');
-});
+module.exports = app; //Vie sovellus testausta varten
+
