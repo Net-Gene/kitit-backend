@@ -52,7 +52,7 @@ Varmista, että tietokantasi (MongoDB/MySQL/PostgreSQL) on käynnissä.
 
 ### Suorita kehityspalvelinmessa seuraava:
 ```
-npm run dev
+npx run dev
 ```
 
 ## Kokoonpano
