@@ -1,10 +1,21 @@
 import globals from "globals";
 import pluginReact from "eslint-plugin-react";
 
+/** @type {import('eslint').Linter.Config} */
+export default {
+  plugins: {
+    react: pluginReact,
+  },
+  languageOptions: {
+    globals: {
+      ...globals.browser,
+    },
+  },
+  rules: {
+    // Esimerkkisääntö: Pakottaa Reactin JSX-alueen
 
-/** @type {import('eslint').Linter.Config[]} */
-export default [
-  {files: ["**/*.{js,mjs,cjs,jsx}"]},
-  {languageOptions: { globals: {...globals.browser, ...globals.node} }},
-  pluginReact.configs.flat.recommended,
-];
+    'react/react-in-jsx-scope': 'error',
+    // Lisää sääntöjä tähän tarpeen mukaan
+
+  },
+};
