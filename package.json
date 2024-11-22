@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "prepare": "husky install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,5 +15,15 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "pg": "^8.13.1"
+  },
+  "lint-staged": {
+  "*.{js,ts,jsx,tsx}": "eslint --fix",
+  "*.{js,ts,jsx,tsx,json,md}": "prettier --write"
+  },
+  "devDependencies": {
+    "eslint": "^9.15.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3"
   }
 }
