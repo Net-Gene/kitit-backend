@@ -56,6 +56,13 @@ npx run dev
 ```
 
 ## Kokoonpano
-ESLint: Suorita npm run lint tarkistaaksesi koodin tyyli- ja laatuongelmat.
-Testaus: Suorita npm-testi suorittaaksesi kaikki yksikkötestit.
-Ympäristömuuttujat: Varmista, että .env-tiedosto on määritetty oikein tietokantayhteysmerkkijonoilla ja salaisuuksilla.
+#### ESLint: 
+Suorita npm run lint tarkistaaksesi koodin tyyli- ja laatuongelmat.
+
+#### Testaus: 
+Suorita npm-testi suorittaaksesi kaikki yksikkötestit.
+
+#### Ympäristömuuttujat: 
+Varmista, että .env-tiedosto on määritetty oikein tietokantayhteysmerkkijonoilla ja salaisuuksilla.
+#### Ennen pull request:in tekemistä: 
+Muista vaihtaa package.json:ista versio, jotta Github Action; "CI/CD for Kit-IT Backend / publish-npm (pull_request)" toimii
