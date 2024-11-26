@@ -3,13 +3,100 @@ const express = require('express');
 const cors = require('cors');  
 const { Pool } = require('pg');
 
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+
 const app = express();
 app.use(cors());  // Ota CORS käyttöön kaikissa pyynnöissä
 
 
 app.use(express.json());  //Lisää tämä saapuvien JSON-pyyntöjen jäsentämiseen
 
+app.use(cookieParser());
 
+
+
+// Lisää rekisteröintilogiikan
+app.post('/api/register', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Username and password are required.' });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id',
+      [username, hashedPassword]
+    );
+    res.status(201).json({ message: 'User registered successfully', userId: result.rows[0].id });
+  } catch (error) {
+    console.error('Error registering user:', error);
+    if (error.code === '23505') {
+      res.status(409).json({ message: 'Username already exists.' });
+    } else {
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+});
+
+
+// Lisää Loginlogiikan
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Username and password are required.' });
+  }
+
+  try {
+    const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    const user = userResult.rows[0];
+
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      return res.status(401).json({ message: 'Invalid username or password.' });
+    }
+
+    // Luo JWT tokenin
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Laittaa tokenin HttpOnly cookieen
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+    });
+
+    res.status(200).json({ message: 'Login successful' });
+  } catch (error) {
+    console.error('Error logging in user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+// Lisää Logoutlogiikan
+app.post('/api/logout', (req, res) => {
+  res.clearCookie('auth_token');
+  res.status(200).json({ message: 'Logged out successfully' });
+});
+
+
+// Vahvistaa JWT tokenit
+const authenticateToken = (req, res, next) => {
+  const token = req.cookies.auth_token;
+  if (!token) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    req.user = user; // Liittää käyttäjän tiedot requestiin
+    next();
+  });
+};
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -125,7 +212,7 @@ app.get('/orders', async (req, res) => {
           JOIN products ON order_items.product_id = products.id
           ORDER BY orders.id ASC;
       `;
-      const result = await pool.query(query);
+      const result = await pool.query(query, [req.user.userId]);
       res.json(result.rows); // Lähetä yhdistetyt tiedot JSON-muodossa
 
   } catch (error) {
