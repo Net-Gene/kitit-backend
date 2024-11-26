@@ -192,6 +192,56 @@ app.post('/add-to-cart', async (req, res) => {
 });
 
 
+// Poista tuote ostoskorista
+
+app.delete('/remove-from-cart', async (req, res) => {
+  const { orderId, productId } = req.body;
+
+  if (!orderId || !productId) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Hae tuotteen hinta
+    const itemResult = await client.query(
+      'SELECT price FROM order_items WHERE order_id = $1 AND product_id = $2',
+      [orderId, productId]
+    );
+
+    if (itemResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Item not found in the cart' });
+    }
+
+    const itemPrice = parseFloat(itemResult.rows[0].price);
+
+    // Poistetaan tuote kohdasta order_items
+    await client.query(
+      'DELETE FROM order_items WHERE order_id = $1 AND product_id = $2',
+      [orderId, productId]
+    );
+
+    // Päivitetään kokonaishinta kohdassa orders
+    await client.query(
+      'UPDATE orders SET total_price = total_price - $1 WHERE id = $2',
+      [itemPrice, orderId]
+    );
+
+    await client.query('COMMIT');
+
+    res.status(200).json({ message: 'Product removed from cart successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error removing product from cart:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 
 //Hanki tilauksia
 
