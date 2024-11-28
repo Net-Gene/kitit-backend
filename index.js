@@ -8,7 +8,10 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 
 const app = express();
-app.use(cors());  // Ota CORS käyttöön kaikissa pyynnöissä
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));  // Ota CORS käyttöön kaikissa pyynnöissä
 
 
 app.use(express.json());  //Lisää tämä saapuvien JSON-pyyntöjen jäsentämiseen
@@ -19,8 +22,12 @@ app.use(cookieParser());
 
 // Lisää rekisteröintilogiikan
 app.post('/api/register', async (req, res) => {
+
+  console.log('Request body:', req.body); //  Debugaus
+
   const { username, password } = req.body;
   if (!username || !password) {
+    console.error('Missing username or password'); //  Debugaus
     return res.status(400).json({ message: 'Username and password are required.' });
   }
 
@@ -30,9 +37,10 @@ app.post('/api/register', async (req, res) => {
       'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id',
       [username, hashedPassword]
     );
+    console.log('User registered with ID:', result.rows[0].id); //  Debugaus
     res.status(201).json({ message: 'User registered successfully', userId: result.rows[0].id });
   } catch (error) {
-    console.error('Error registering user:', error);
+    console.error('Error registering user:', error); //  Debugaus
     if (error.code === '23505') {
       res.status(409).json({ message: 'Username already exists.' });
     } else {
