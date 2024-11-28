@@ -34,7 +34,8 @@ app.post('/api/register', async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id',
+      "INSERT INTO public.users(username, password_hash) VALUES ($1, $2) RETURNING id;",
+
       [username, hashedPassword]
     );
     console.log('User registered with ID:', result.rows[0].id); //  Debugaus
@@ -60,15 +61,21 @@ app.post('/api/login', async (req, res) => {
   try {
     const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     const user = userResult.rows[0];
+    console.log('User fetched from database:', user);
 
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ message: 'Invalid username or password.' });
     }
 
-    // Luo JWT tokenin
+    console.log('Password match:', true);
+
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set.');
+      return res.status(500).json({ message: 'Internal server configuration error.' });
+    }
+
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    // Laittaa tokenin HttpOnly cookieen
     res.cookie('auth_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -81,6 +88,7 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 // Lisää Logoutlogiikan
