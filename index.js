@@ -123,6 +123,15 @@ app.get('/', async (req, res) => {
   res.send(result.rows);
 });
 
+
+// Haetaan user id
+app.get('/api/user', authenticateToken, (req, res) => {
+  if (!req.user || !req.user.userId) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  res.status(200).json({ userId: req.user.userId });
+});
+
 //Lisää tuotelogiikka ostoskoriin
 
 app.post('/add-to-cart', async (req, res) => {
@@ -212,9 +221,10 @@ app.post('/add-to-cart', async (req, res) => {
 
 app.delete('/remove-from-cart', async (req, res) => {
   const { orderId, productId } = req.body;
+  const userId = req.user.userId;
 
-  if (!orderId || !productId) {
-    return res.status(400).json({ message: 'Missing required fields' });
+  if (!productId) {
+    return res.status(400).json({ message: 'Missing product ID' });
   }
 
   const client = await pool.connect();
@@ -224,31 +234,37 @@ app.delete('/remove-from-cart', async (req, res) => {
 
     // Hae tuotteen hinta
     const itemResult = await client.query(
-      'SELECT price FROM order_items WHERE order_id = $1 AND product_id = $2',
-      [orderId, productId]
+      `
+      SELECT oi.price, oi.order_id 
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE oi.product_id = ? AND o.user_id = ? AND o.status = 'Pending' 
+      LIMIT 1;
+      `,
+      [productId, userId]
     );
 
     if (itemResult.rows.length === 0) {
       return res.status(404).json({ message: 'Item not found in the cart' });
     }
 
-    const itemPrice = parseFloat(itemResult.rows[0].price);
+    const { price, order_id: orderId } = itemResult.rows[0];
 
     // Poistetaan tuote kohdasta order_items
     await client.query(
-      'DELETE FROM order_items WHERE order_id = $1 AND product_id = $2',
+      'DELETE FROM order_items WHERE order_id = ? AND product_id = ?',
       [orderId, productId]
     );
 
     // Päivitetään kokonaishinta kohdassa orders
     await client.query(
-      'UPDATE orders SET total_price = total_price - $1 WHERE id = $2',
-      [itemPrice, orderId]
+      'UPDATE orders SET total_price = total_price - ? WHERE id = ?',
+      [price, orderId]
     );
 
     await client.query('COMMIT');
 
-    res.status(200).json({ message: 'Product removed from cart successfully' });
+    res.status(200).json({ message: 'Product removed successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error removing product from cart:', error);
@@ -261,7 +277,7 @@ app.delete('/remove-from-cart', async (req, res) => {
 
 //Hanki tilauksia
 
-app.get('/orders', async (req, res) => {
+app.get('/orders', authenticateToken, async (req, res) => {
   try {
       const query = `
           SELECT 
@@ -276,6 +292,7 @@ app.get('/orders', async (req, res) => {
           FROM orders
           JOIN order_items ON orders.id = order_items.order_id
           JOIN products ON order_items.product_id = products.id
+          WHERE orders.user_id = $1
           ORDER BY orders.id ASC;
       `;
       const result = await pool.query(query, [req.user.userId]);
