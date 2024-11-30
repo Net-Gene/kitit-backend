@@ -218,11 +218,13 @@ app.post('/add-to-cart', async (req, res) => {
 
 
 // Poista tuote ostoskorista
-
-app.delete('/remove-from-cart', async (req, res) => {
-  const { orderId, productId } = req.body;
+app.delete('/remove-from-cart', authenticateToken, async (req, res) => {
+  const { productId, orderId } = req.body;
   const userId = req.user.userId;
 
+  if (!productId || !orderId) {
+    return res.status(400).json({ message: 'Missing productId or orderId' });
+}
   if (!productId) {
     return res.status(400).json({ message: 'Missing product ID' });
   }
@@ -232,13 +234,13 @@ app.delete('/remove-from-cart', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Hae tuotteen hinta
+    // Hae nykyisen käyttäjän odottavassa tilauksessa olevan tuotteen hinta ja ID
     const itemResult = await client.query(
       `
       SELECT oi.price, oi.order_id 
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
-      WHERE oi.product_id = ? AND o.user_id = ? AND o.status = 'Pending' 
+      WHERE oi.product_id = $1 AND o.user_id = $2 AND o.status = 'Pending'
       LIMIT 1;
       `,
       [productId, userId]
@@ -252,18 +254,17 @@ app.delete('/remove-from-cart', async (req, res) => {
 
     // Poistetaan tuote kohdasta order_items
     await client.query(
-      'DELETE FROM order_items WHERE order_id = ? AND product_id = ?',
+      'DELETE FROM order_items WHERE order_id = $1 AND product_id = $2',
       [orderId, productId]
     );
 
     // Päivitetään kokonaishinta kohdassa orders
     await client.query(
-      'UPDATE orders SET total_price = total_price - ? WHERE id = ?',
+      'UPDATE orders SET total_price = total_price - $1 WHERE id = $2',
       [price, orderId]
     );
 
     await client.query('COMMIT');
-
     res.status(200).json({ message: 'Product removed successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -273,6 +274,8 @@ app.delete('/remove-from-cart', async (req, res) => {
     client.release();
   }
 });
+
+
 
 
 //Hanki tilauksia
