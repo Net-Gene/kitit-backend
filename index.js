@@ -8,7 +8,10 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 
 const app = express();
-app.use(cors());  // Ota CORS käyttöön kaikissa pyynnöissä
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));  // Ota CORS käyttöön kaikissa pyynnöissä
 
 
 app.use(express.json());  //Lisää tämä saapuvien JSON-pyyntöjen jäsentämiseen
@@ -19,20 +22,26 @@ app.use(cookieParser());
 
 // Lisää rekisteröintilogiikan
 app.post('/api/register', async (req, res) => {
+
+  console.log('Request body:', req.body); //  Debugaus
+
   const { username, password } = req.body;
   if (!username || !password) {
+    console.error('Missing username or password'); //  Debugaus
     return res.status(400).json({ message: 'Username and password are required.' });
   }
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id',
+      "INSERT INTO public.users(username, password_hash) VALUES ($1, $2) RETURNING id;",
+
       [username, hashedPassword]
     );
+    console.log('User registered with ID:', result.rows[0].id); //  Debugaus
     res.status(201).json({ message: 'User registered successfully', userId: result.rows[0].id });
   } catch (error) {
-    console.error('Error registering user:', error);
+    console.error('Error registering user:', error); //  Debugaus
     if (error.code === '23505') {
       res.status(409).json({ message: 'Username already exists.' });
     } else {
@@ -52,15 +61,21 @@ app.post('/api/login', async (req, res) => {
   try {
     const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     const user = userResult.rows[0];
+    console.log('User fetched from database:', user);
 
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ message: 'Invalid username or password.' });
     }
 
-    // Luo JWT tokenin
+    console.log('Password match:', true);
+
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not set.');
+      return res.status(500).json({ message: 'Internal server configuration error.' });
+    }
+
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    // Laittaa tokenin HttpOnly cookieen
     res.cookie('auth_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -73,6 +88,7 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 // Lisää Logoutlogiikan
@@ -105,6 +121,15 @@ const pool = new Pool({
 app.get('/', async (req, res) => {
   const result = await pool.query('SELECT * FROM public.products ORDER BY id ASC ');
   res.send(result.rows);
+});
+
+
+// Haetaan user id
+app.get('/api/user', authenticateToken, (req, res) => {
+  if (!req.user || !req.user.userId) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  res.status(200).json({ userId: req.user.userId });
 });
 
 //Lisää tuotelogiikka ostoskoriin
@@ -193,12 +218,15 @@ app.post('/add-to-cart', async (req, res) => {
 
 
 // Poista tuote ostoskorista
+app.delete('/remove-from-cart', authenticateToken, async (req, res) => {
+  const { productId, orderId } = req.body;
+  const userId = req.user.userId;
 
-app.delete('/remove-from-cart', async (req, res) => {
-  const { orderId, productId } = req.body;
-
-  if (!orderId || !productId) {
-    return res.status(400).json({ message: 'Missing required fields' });
+  if (!productId || !orderId) {
+    return res.status(400).json({ message: 'Missing productId or orderId' });
+}
+  if (!productId) {
+    return res.status(400).json({ message: 'Missing product ID' });
   }
 
   const client = await pool.connect();
@@ -206,17 +234,23 @@ app.delete('/remove-from-cart', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Hae tuotteen hinta
+    // Hae nykyisen käyttäjän odottavassa tilauksessa olevan tuotteen hinta ja ID
     const itemResult = await client.query(
-      'SELECT price FROM order_items WHERE order_id = $1 AND product_id = $2',
-      [orderId, productId]
+      `
+      SELECT oi.price, oi.order_id 
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE oi.product_id = $1 AND o.user_id = $2 AND o.status = 'Pending'
+      LIMIT 1;
+      `,
+      [productId, userId]
     );
 
     if (itemResult.rows.length === 0) {
       return res.status(404).json({ message: 'Item not found in the cart' });
     }
 
-    const itemPrice = parseFloat(itemResult.rows[0].price);
+    const { price, order_id: orderId } = itemResult.rows[0];
 
     // Poistetaan tuote kohdasta order_items
     await client.query(
@@ -227,12 +261,11 @@ app.delete('/remove-from-cart', async (req, res) => {
     // Päivitetään kokonaishinta kohdassa orders
     await client.query(
       'UPDATE orders SET total_price = total_price - $1 WHERE id = $2',
-      [itemPrice, orderId]
+      [price, orderId]
     );
 
     await client.query('COMMIT');
-
-    res.status(200).json({ message: 'Product removed from cart successfully' });
+    res.status(200).json({ message: 'Product removed successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error removing product from cart:', error);
@@ -243,9 +276,11 @@ app.delete('/remove-from-cart', async (req, res) => {
 });
 
 
+
+
 //Hanki tilauksia
 
-app.get('/orders', async (req, res) => {
+app.get('/orders', authenticateToken, async (req, res) => {
   try {
       const query = `
           SELECT 
@@ -260,6 +295,7 @@ app.get('/orders', async (req, res) => {
           FROM orders
           JOIN order_items ON orders.id = order_items.order_id
           JOIN products ON order_items.product_id = products.id
+          WHERE orders.user_id = $1
           ORDER BY orders.id ASC;
       `;
       const result = await pool.query(query, [req.user.userId]);
