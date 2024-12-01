@@ -307,6 +307,72 @@ app.get('/orders', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/appointments/available', async (req, res) => {
+  const { date } = req.query;
+  
+  if (!date) {
+      return res.status(400).json({ message: 'Date is required.' });
+  }
+
+  try {
+    // Ensure the date is being passed in the correct format
+    console.log('Received date:', date);  // Debugging
+    
+    const reservedResult = await pool.query(
+        `SELECT start_time, end_time 
+         FROM appointments 
+         WHERE DATE(date) = $1;`, // Compare start_time's date with the input date
+        [date] // Ensure the date is passed as a string in 'yyyy-MM-dd' format
+    );
+
+    const reservedSlots = reservedResult.rows.map(row => ({
+        start_time: row.start_time,
+        end_time: row.end_time
+    }));
+
+    res.json({ reservedSlots });
+  } catch (error) {
+    console.error('Error fetching reserved slots:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.post('/api/appointments', async (req, res) => {
+  const { date, user_id, start_time, end_time } = req.body;
+
+  // Vahvista syötteet
+  if (!date || !user_id || !start_time || !end_time) {
+    return res.status(400).json({ message: 'Date, start_time, end_time, and user_id are required.' });
+  }
+
+  try {
+    // Check if an appointment already exists for the given time slot
+    const result = await pool.query(
+      `SELECT * FROM appointments 
+       WHERE date = $1 AND start_time < $2 AND end_time > $2`,
+      [date, start_time]
+    );
+
+    if (result.rows.length > 0) {
+      return res.status(409).json({ message: 'Time slot is already booked.' });
+    }
+
+    // Add the new appointment if no conflict
+    await pool.query(
+      `INSERT INTO appointments (date, user_id, start_time, end_time) 
+       VALUES ($1, $2, $3, $4)`,
+      [date, user_id, start_time, end_time]
+    );
+
+    res.status(201).json({ message: 'Appointment booked successfully.' });
+  } catch (error) {
+    console.error('Error booking appointment:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+
+
 //Käynnistä palvelin vain, jos emme ole testiympäristössä
 if (process.env.NODE_ENV !== 'test') {
   app.listen(3001, () => {
