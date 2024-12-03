@@ -8,31 +8,31 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Linting and testing job
+  # Nukkaus-ja testaustyöt
   lint-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Set up Node.js environment
+      # Määritä Node.js-ympäristö
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # Install dependencies
+      # Asenna riippuvuudet
       - run: npm ci
 
-      # Lint the code
+      # Linjaa koodi
       - name: Run ESLint
         run: npm run lint
 
-      # Run tests
+      # Suorita testit
       - name: Run Tests
         run: npm test
 
-  # Deployment job (e.g., publishing the package)
+  # Käyttöönottotyö (esim. paketin julkaisu)
   publish-npm:
-    needs: lint-and-test  # Ensures linting and tests pass before publishing
+    needs: lint-and-test  # Varmistaa nukkaamisen ja testien läpäisyn ennen julkaisua
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  # Optional deployment to production (API deployment example)
+  # Valinnainen käyttöönotto tuotantoon (API-käyttöesimerkki)
   deploy-api:
     needs: lint-and-test
     runs-on: ubuntu-latest

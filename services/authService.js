@@ -1,0 +1,1 @@
+//Paikkamerkki tulevaa logiikkaa varten

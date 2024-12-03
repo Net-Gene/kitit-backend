@@ -1,0 +1,1 @@
+// Paikkamerkki ORM-malleille tarvittaessa
