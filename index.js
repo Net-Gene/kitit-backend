@@ -91,7 +91,7 @@ app.post('/api/login', async (req, res) => {
 
 
 
-// Lisää Logoutlogiikan
+// Logoutlogiikka
 app.post('/api/logout', (req, res) => {
   res.clearCookie('auth_token');
   res.status(200).json({ message: 'Logged out successfully' });
@@ -131,6 +131,144 @@ app.get('/api/user', authenticateToken, (req, res) => {
   }
   res.status(200).json({ userId: req.user.userId });
 });
+
+app.get('/api/protected-data', authenticateToken, (req, res) => {
+  res.status(200).json({ message: 'This is protected data!' });
+});
+
+
+
+// Update Username
+app.post('/api/update-username', async (req, res) => {
+  const { username, userId } = req.body;
+
+  if (!username) {
+    return res.status(400).json({ message: 'Username is required.' });
+  }
+
+
+  const client = await pool.connect(); // Aloita tietokantatapahtuma
+
+  try {
+    await client.query('BEGIN'); // Aloita 
+
+    const result = await pool.query(
+      'UPDATE users SET username = $1 WHERE id = $2 RETURNING *', 
+      [username, userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    res.status(200).json({ message: 'Username updated successfully' });
+  } catch (error) {
+    console.error('Error updating username:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+// Update Password
+app.post('/api/update-password', async (req, res) => {
+  const { password, userId } = req.body;
+
+  if (!password) {
+    return res.status(400).json({ message: 'Password is required.' });
+  }
+
+
+  const client = await pool.connect(); // Aloita tietokantatapahtuma
+
+  try {
+    await client.query('BEGIN'); // Aloita 
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING *', 
+      [hashedPassword, userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    res.status(200).json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error updating password:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+// Update Email
+app.post('/api/update-email', async (req, res) => {
+  const { email, userId } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required.' });
+  }
+
+
+  const client = await pool.connect(); // Aloita tietokantatapahtuma
+
+  try {
+    await client.query('BEGIN'); // Aloita 
+
+    const result = await pool.query(
+      'UPDATE users SET email = $1 WHERE id = $2 RETURNING *', 
+      [email, userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    res.status(200).json({ message: 'Email updated successfully' });
+  } catch (error) {
+    console.error('Error updating email:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+
+// Delete Account
+app.delete('/api/delete-account', async (req, res) => {
+  const { userId } = req.body; // Destructure userId from the body
+
+  console.log("userId", userId)
+  if (!userId) {
+    return res.status(400).json({ message: 'User ID is required.' });
+  }
+
+  const client = await pool.connect(); // Start a database transaction
+
+  try {
+    await client.query('BEGIN'); // Begin transaction
+
+
+    const result = await client.query(
+      'DELETE FROM users WHERE id = $1 RETURNING *',
+      [userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    await client.query('COMMIT'); // Commit transaction
+
+    res.status(200).json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK'); // Rollback transaction on error
+    console.error('Error deleting account:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    client.release(); // Release database connection
+  }
+});
+
+
 
 //Lisää tuotelogiikka ostoskoriin
 
@@ -223,10 +361,10 @@ app.delete('/remove-from-cart', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
   if (!productId || !orderId) {
-    return res.status(400).json({ message: 'Missing productId or orderId' });
+    return res.status(400).json({ message: 'Tuotetunnus tai tilaustunnus puuttuu' });
 }
   if (!productId) {
-    return res.status(400).json({ message: 'Missing product ID' });
+    return res.status(400).json({ message: 'Tuotetunnus puuttuu' });
   }
 
   const client = await pool.connect();
@@ -247,7 +385,7 @@ app.delete('/remove-from-cart', authenticateToken, async (req, res) => {
     );
 
     if (itemResult.rows.length === 0) {
-      return res.status(404).json({ message: 'Item not found in the cart' });
+      return res.status(404).json({ message: 'Tuotetta ei löydy ostoskorista' });
     }
 
     const { price, order_id: orderId } = itemResult.rows[0];
@@ -295,17 +433,56 @@ app.get('/orders', authenticateToken, async (req, res) => {
           FROM orders
           JOIN order_items ON orders.id = order_items.order_id
           JOIN products ON order_items.product_id = products.id
-          WHERE orders.user_id = $1
+          WHERE orders.user_id = $1 AND orders.status = $2
           ORDER BY orders.id ASC;
       `;
-      const result = await pool.query(query, [req.user.userId]);
-      res.json(result.rows); // Lähetä yhdistetyt tiedot JSON-muodossa
+      const result = await pool.query(query, [req.user.userId, 'Pending']);
+      res.json(result.rows); // Send the filtered orders as JSON
 
   } catch (error) {
       console.error('Error fetching orders:', error);
       res.status(500).json({ message: 'Internal server error' });
   }
 });
+app.post('/orders/complete', authenticateToken, async (req, res) => {
+  const { orderId } = req.body;
+
+  if (!orderId) {
+      return res.status(400).json({ message: 'Order ID is required' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+      await client.query('BEGIN');
+
+      // Validate if the order exists and belongs to the user
+      const orderResult = await client.query(
+          'SELECT * FROM orders WHERE id = $1 AND user_id = $2 AND status = $3',
+          [orderId, req.user.userId, 'Pending']
+      );
+
+      if (orderResult.rows.length === 0) {
+          return res.status(404).json({ message: 'Order not found or not valid for completion' });
+      }
+
+      // Update the order's status
+      await client.query(
+          'UPDATE orders SET status = $1 WHERE id = $2',
+          ['Completed', orderId]
+      );
+
+      await client.query('COMMIT');
+      res.status(200).json({ message: 'Order completed successfully' });
+  } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error completing order:', error);
+      res.status(500).json({ message: 'Internal server error' });
+  } finally {
+      client.release();
+  }
+});
+
 
 app.get('/api/appointments/available', async (req, res) => {
   const { date } = req.query;
@@ -354,7 +531,7 @@ app.post('/api/appointments', async (req, res) => {
     );
 
     if (result.rows.length > 0) {
-      return res.status(409).json({ message: 'Time slot is already booked.' });
+      return res.status(409).json({ message: 'Aika on jo varattu.' });
     }
 
     // Add the new appointment if no conflict
