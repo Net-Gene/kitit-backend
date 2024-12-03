@@ -18,7 +18,7 @@ Tämä arkisto sisältää Kit-IT-projektin taustakoodin. Taustaosa käsittelee 
 ## Käytetyt tekniikat
 
 - **Node.js / Express**: Palvelinpuolen sovelluksen rakentamiseen.
-- **Tietokanta**: MongoDB, MySQL tai PostgreSQL (valitse asennuksesi perusteella).
+- **Tietokanta**: PostgreSQL.
 - **JWT**: Todennusta ja valtuutusta varten.
 - **Lisätyökalut**:
   - ESLint: Nukkaamiseen ja koodin laadun ylläpitämiseen.
@@ -48,7 +48,7 @@ PORTTI=<oma-portti>
 ```
 
 ## Käynnistä tietokanta
-Varmista, että tietokantasi (MongoDB/MySQL/PostgreSQL) on käynnissä.
+Varmista, että tietokantasi PostgreSQL on käynnissä.
 
 ### Suorita kehityspalvelinmessa seuraava:
 ```
