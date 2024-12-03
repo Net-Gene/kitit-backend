@@ -14,20 +14,25 @@ app.use(cors({
 }));  // Ota CORS käyttöön kaikissa pyynnöissä
 
 
+
 app.use(express.json());  //Lisää tämä saapuvien JSON-pyyntöjen jäsentämiseen
+
 
 app.use(cookieParser());
 
 
 
 // Lisää rekisteröintilogiikan
+
 app.post('/api/register', async (req, res) => {
 
   console.log('Request body:', req.body); //  Debugaus
 
+
   const { username, password } = req.body;
   if (!username || !password) {
     console.error('Missing username or password'); //  Debugaus
+
     return res.status(400).json({ message: 'Username and password are required.' });
   }
 
@@ -39,9 +44,11 @@ app.post('/api/register', async (req, res) => {
       [username, hashedPassword]
     );
     console.log('User registered with ID:', result.rows[0].id); //  Debugaus
+
     res.status(201).json({ message: 'User registered successfully', userId: result.rows[0].id });
   } catch (error) {
     console.error('Error registering user:', error); //  Debugaus
+
     if (error.code === '23505') {
       res.status(409).json({ message: 'Username already exists.' });
     } else {
@@ -52,6 +59,7 @@ app.post('/api/register', async (req, res) => {
 
 
 // Lisää Loginlogiikan
+
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -92,15 +100,24 @@ app.post('/api/login', async (req, res) => {
 
 
 // Logoutlogiikka
+
 app.post('/api/logout', (req, res) => {
-  res.clearCookie('auth_token');
+
+  res.clearCookie('auth_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Strict',
+    path: '/', 
+  });
   res.status(200).json({ message: 'Logged out successfully' });
 });
 
 
 // Vahvistaa JWT tokenit
+
 const authenticateToken = (req, res, next) => {
   const token = req.cookies.auth_token;
+
   if (!token) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
@@ -110,6 +127,7 @@ const authenticateToken = (req, res, next) => {
       return res.status(403).json({ message: 'Forbidden' });
     }
     req.user = user; // Liittää käyttäjän tiedot requestiin
+
     next();
   });
 };
@@ -124,7 +142,8 @@ app.get('/', async (req, res) => {
 });
 
 
-// Haetaan user id
+// Haetaan käyttäjätunnus
+
 app.get('/api/user', authenticateToken, (req, res) => {
   if (!req.user || !req.user.userId) {
     return res.status(401).json({ message: 'Unauthorized' });
@@ -138,7 +157,8 @@ app.get('/api/protected-data', authenticateToken, (req, res) => {
 
 
 
-// Update Username
+// Päivitä käyttäjätunnus
+
 app.post('/api/update-username', async (req, res) => {
   const { username, userId } = req.body;
 
@@ -149,8 +169,10 @@ app.post('/api/update-username', async (req, res) => {
 
   const client = await pool.connect(); // Aloita tietokantatapahtuma
 
+
   try {
     await client.query('BEGIN'); // Aloita 
+
 
     const result = await pool.query(
       'UPDATE users SET username = $1 WHERE id = $2 RETURNING *', 
@@ -169,7 +191,8 @@ app.post('/api/update-username', async (req, res) => {
 });
 
 
-// Update Password
+// Päivitä salasana
+
 app.post('/api/update-password', async (req, res) => {
   const { password, userId } = req.body;
 
@@ -180,8 +203,10 @@ app.post('/api/update-password', async (req, res) => {
 
   const client = await pool.connect(); // Aloita tietokantatapahtuma
 
+
   try {
     await client.query('BEGIN'); // Aloita 
+
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
@@ -201,7 +226,8 @@ app.post('/api/update-password', async (req, res) => {
 });
 
 
-// Update Email
+// Päivitä sähköposti
+
 app.post('/api/update-email', async (req, res) => {
   const { email, userId } = req.body;
 
@@ -212,8 +238,10 @@ app.post('/api/update-email', async (req, res) => {
 
   const client = await pool.connect(); // Aloita tietokantatapahtuma
 
+
   try {
     await client.query('BEGIN'); // Aloita 
+
 
     const result = await pool.query(
       'UPDATE users SET email = $1 WHERE id = $2 RETURNING *', 
@@ -232,19 +260,22 @@ app.post('/api/update-email', async (req, res) => {
 });
 
 
-// Delete Account
-app.delete('/api/delete-account', async (req, res) => {
-  const { userId } = req.body; // Destructure userId from the body
+// Poista tili
 
-  console.log("userId", userId)
+app.delete('/api/delete-account', async (req, res) => {
+  const { userId } = req.body; // Tuhoa userId rungosta
+
+
   if (!userId) {
     return res.status(400).json({ message: 'User ID is required.' });
   }
 
-  const client = await pool.connect(); // Start a database transaction
+  const client = await pool.connect(); // Aloita tietokantatapahtuma
+
 
   try {
-    await client.query('BEGIN'); // Begin transaction
+    await client.query('BEGIN'); // Aloita kauppa
+
 
 
     const result = await client.query(
@@ -256,21 +287,25 @@ app.delete('/api/delete-account', async (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    await client.query('COMMIT'); // Commit transaction
+    await client.query('COMMIT'); // Sitouta tapahtuma
+
 
     res.status(200).json({ message: 'Account deleted successfully' });
   } catch (error) {
     await client.query('ROLLBACK'); // Rollback transaction on error
+
     console.error('Error deleting account:', error);
     res.status(500).json({ message: 'Internal server error' });
   } finally {
-    client.release(); // Release database connection
+    client.release(); // Vapauta tietokantayhteys
+
   }
 });
 
 
 
 //Lisää tuotelogiikka ostoskoriin
+
 
 app.post('/add-to-cart', async (req, res) => {
   const { productId, quantity, userId } = req.body;
@@ -281,11 +316,14 @@ app.post('/add-to-cart', async (req, res) => {
 
   const client = await pool.connect(); // Aloita tietokantatapahtuma
 
+
   try {
     await client.query('BEGIN'); // Aloita kauppa
 
 
+
     // Tarkista, onko käyttäjälle olemassa tilaus
+
 
     const orderResult = await client.query(
       'SELECT * FROM orders WHERE user_id = $1 AND status = $2 LIMIT 1',
@@ -296,11 +334,13 @@ app.post('/add-to-cart', async (req, res) => {
     if (orderResult.rows.length === 0) {
       // Jos odottavaa tilausta ei ole, luo uusi
 
+
       const newOrderResult = await client.query(
         'INSERT INTO orders (user_id, total_price, status) VALUES ($1, $2, $3) RETURNING id',
         [userId, 0, 'Pending']
       );
       order = { id: newOrderResult.rows[0].id }; // Pura tilaustunnus
+
 
     } else {
       order = orderResult.rows[0];
@@ -308,11 +348,13 @@ app.post('/add-to-cart', async (req, res) => {
 
     // Varmista, että tilaustunnus on kelvollinen
 
+
     if (!order.id) {
       throw new Error('Order ID is not valid.');
     }
 
     // Hae tuote
+
 
     const productResult = await client.query('SELECT * FROM products WHERE id = $1', [productId]);
     const product = productResult.rows[0];
@@ -323,9 +365,11 @@ app.post('/add-to-cart', async (req, res) => {
 
     // Laske tuotteen kokonaishinta
 
+
     const price = parseFloat(product.price) * quantity;
 
     // Lisää tuote kohtaan order_items
+
 
     await client.query(
       'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ($1, $2, $3, $4)',
@@ -333,6 +377,7 @@ app.post('/add-to-cart', async (req, res) => {
     );
 
     // Päivitä tilauksen kokonaishinta
+
 
     await client.query(
       'UPDATE orders SET total_price = total_price + $1 WHERE id = $2',
@@ -342,20 +387,24 @@ app.post('/add-to-cart', async (req, res) => {
     await client.query('COMMIT'); // Sitouta kauppa
 
 
+
     res.status(200).json({ message: 'Product added to cart successfully', orderId: order.id });
   } catch (error) {
     await client.query('ROLLBACK'); // Peruuta tapahtuma, jos siinä on virhe
+
 
     console.error('Error adding product to cart:', error);
     res.status(500).json({ message: 'Internal server error' });
   } finally {
     client.release(); // Vapauta aina tietokantaasiakas
 
+
   }
 });
 
 
 // Poista tuote ostoskorista
+
 app.delete('/remove-from-cart', authenticateToken, async (req, res) => {
   const { productId, orderId } = req.body;
   const userId = req.user.userId;
@@ -373,6 +422,7 @@ app.delete('/remove-from-cart', authenticateToken, async (req, res) => {
     await client.query('BEGIN');
 
     // Hae nykyisen käyttäjän odottavassa tilauksessa olevan tuotteen hinta ja ID
+
     const itemResult = await client.query(
       `
       SELECT oi.price, oi.order_id 
@@ -391,12 +441,14 @@ app.delete('/remove-from-cart', authenticateToken, async (req, res) => {
     const { price, order_id: orderId } = itemResult.rows[0];
 
     // Poistetaan tuote kohdasta order_items
+
     await client.query(
       'DELETE FROM order_items WHERE order_id = $1 AND product_id = $2',
       [orderId, productId]
     );
 
     // Päivitetään kokonaishinta kohdassa orders
+
     await client.query(
       'UPDATE orders SET total_price = total_price - $1 WHERE id = $2',
       [price, orderId]
@@ -418,6 +470,7 @@ app.delete('/remove-from-cart', authenticateToken, async (req, res) => {
 
 //Hanki tilauksia
 
+
 app.get('/orders', authenticateToken, async (req, res) => {
   try {
       const query = `
@@ -437,7 +490,8 @@ app.get('/orders', authenticateToken, async (req, res) => {
           ORDER BY orders.id ASC;
       `;
       const result = await pool.query(query, [req.user.userId, 'Pending']);
-      res.json(result.rows); // Send the filtered orders as JSON
+      res.json(result.rows); // Lähetä suodatetut tilaukset JSON-muodossa
+
 
   } catch (error) {
       console.error('Error fetching orders:', error);
@@ -456,7 +510,8 @@ app.post('/orders/complete', authenticateToken, async (req, res) => {
   try {
       await client.query('BEGIN');
 
-      // Validate if the order exists and belongs to the user
+      // Tarkista, onko tilaus olemassa ja kuuluuko se käyttäjälle
+
       const orderResult = await client.query(
           'SELECT * FROM orders WHERE id = $1 AND user_id = $2 AND status = $3',
           [orderId, req.user.userId, 'Pending']
@@ -466,7 +521,8 @@ app.post('/orders/complete', authenticateToken, async (req, res) => {
           return res.status(404).json({ message: 'Order not found or not valid for completion' });
       }
 
-      // Update the order's status
+      // Päivitä tilauksen tila
+
       await client.query(
           'UPDATE orders SET status = $1 WHERE id = $2',
           ['Completed', orderId]
@@ -492,14 +548,18 @@ app.get('/api/appointments/available', async (req, res) => {
   }
 
   try {
-    // Ensure the date is being passed in the correct format
-    console.log('Received date:', date);  // Debugging
+    // Varmista, että päivämäärä välitetään oikeassa muodossa
+
+    console.log('Received date:', date);  // Virheenkorjaus
+
     
     const reservedResult = await pool.query(
         `SELECT start_time, end_time 
          FROM appointments 
-         WHERE DATE(date) = $1;`, // Compare start_time's date with the input date
-        [date] // Ensure the date is passed as a string in 'yyyy-MM-dd' format
+         WHERE DATE(date) = $1;`, // Vertaa aloitusajan päivämäärää syötettyyn päivämäärään
+
+        [date] // Varmista, että päivämäärä välitetään merkkijonona vvvv-KK-pp-muodossa
+
     );
 
     const reservedSlots = reservedResult.rows.map(row => ({
@@ -518,12 +578,14 @@ app.post('/api/appointments', async (req, res) => {
   const { date, user_id, start_time, end_time } = req.body;
 
   // Vahvista syötteet
+
   if (!date || !user_id || !start_time || !end_time) {
     return res.status(400).json({ message: 'Date, start_time, end_time, and user_id are required.' });
   }
 
   try {
-    // Check if an appointment already exists for the given time slot
+    // Tarkista, onko annetulle aikavälille jo varattu tapaaminen
+
     const result = await pool.query(
       `SELECT * FROM appointments 
        WHERE date = $1 AND start_time < $2 AND end_time > $2`,
@@ -534,7 +596,8 @@ app.post('/api/appointments', async (req, res) => {
       return res.status(409).json({ message: 'Aika on jo varattu.' });
     }
 
-    // Add the new appointment if no conflict
+    // Lisää uusi tapaaminen, jos ristiriitaa ei ole
+
     await pool.query(
       `INSERT INTO appointments (date, user_id, start_time, end_time) 
        VALUES ($1, $2, $3, $4)`,
@@ -551,6 +614,7 @@ app.post('/api/appointments', async (req, res) => {
 
 
 //Käynnistä palvelin vain, jos emme ole testiympäristössä
+
 if (process.env.NODE_ENV !== 'test') {
   app.listen(3001, () => {
     console.log('Server running on http://localhost:3001');
@@ -558,4 +622,5 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 module.exports = app; //Vie sovellus testausta varten
+
 
