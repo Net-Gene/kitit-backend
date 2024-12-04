@@ -1,4 +1,4 @@
-// Pilkkaa pg (PostgreSQL) -kirjastoa
+// "jest" pg (PostgreSQL) -kirjastoa
 
 jest.mock('pg', () => {
     return {
