@@ -3,34 +3,50 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 
 const updateUsername = async (req, res) => {
-    const { username, userId } = req.body;
-    
-    if (!username) {
-        return res.status(400).json({ message: 'Username is required.' });
-    }
-    
-    
-    const client = await pool.connect(); // Aloita tietokantatapahtuma
-    
-    
-    try {
-        await client.query('BEGIN'); // Aloita 
-    
-    
-        const result = await pool.query(
-        'UPDATE users SET username = $1 WHERE id = $2 RETURNING *', 
-        [username, userId]
-        );
-    
-        if (result.rowCount === 0) {
-        return res.status(404).json({ message: 'User not found.' });
-        }
-    
-        res.status(200).json({ message: 'Username updated successfully' });
-    } catch (error) {
-        console.error('Error updating username:', error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
+  const { username, userId } = req.body;
+
+  if (!username) {
+      return res.status(400).json({ message: 'Username is required.' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+      await client.query('BEGIN'); // Aloita kauppa
+
+
+      // Tarkista, onko käyttäjätunnus jo olemassa
+
+      const usernameCheck = await client.query(
+          'SELECT id FROM users WHERE username = $1',
+          [username]
+      );
+
+      if (usernameCheck.rowCount > 0 && usernameCheck.rows[0].id !== userId) {
+          return res.status(409).json({ message: 'Username already exists.' });
+      }
+
+      // Päivitä käyttäjätunnus
+
+      const result = await client.query(
+          'UPDATE users SET username = $1 WHERE id = $2 RETURNING *',
+          [username, userId]
+      );
+
+      if (result.rowCount === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ message: 'User not found.' });
+      }
+
+      await client.query('COMMIT');
+      res.status(200).json({ message: 'Username updated successfully' });
+  } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error updating username:', error);
+      res.status(500).json({ message: 'Internal server error' });
+  } finally {
+      client.release();
+  }
 };
 
 const updatePassword = async (req, res) => {
@@ -44,8 +60,10 @@ const updatePassword = async (req, res) => {
     const client = await pool.connect(); // Aloita tietokantatapahtuma
 
 
+
     try {
         await client.query('BEGIN'); // Aloita 
+
 
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -74,10 +92,12 @@ const updateEmail = async (req, res) => {
   
   
     const client = await pool.connect(); // Aloita tietokantatapahtuma
+
   
   
     try {
       await client.query('BEGIN'); // Aloita 
+
   
   
       const result = await pool.query(
@@ -98,6 +118,7 @@ const updateEmail = async (req, res) => {
 
 const deleteAccount = async (req, res) => {
     const { userId } = req.body; // Tuhoa userId rungosta
+
   
   
     if (!userId) {
@@ -105,10 +126,12 @@ const deleteAccount = async (req, res) => {
     }
   
     const client = await pool.connect(); // Aloita tietokantatapahtuma
+
   
   
     try {
       await client.query('BEGIN'); // Aloita kauppa
+
   
   
   
@@ -122,16 +145,19 @@ const deleteAccount = async (req, res) => {
       }
   
       await client.query('COMMIT'); // Sitouta tapahtuma
+
   
   
       res.status(200).json({ message: 'Account deleted successfully' });
     } catch (error) {
       await client.query('ROLLBACK'); // Rollback transaction on error
+
   
       console.error('Error deleting account:', error);
       res.status(500).json({ message: 'Internal server error' });
     } finally {
       client.release(); // Vapauta tietokantayhteys
+
   
     }
 };

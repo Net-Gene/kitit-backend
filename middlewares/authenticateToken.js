@@ -2,7 +2,8 @@ const jwt = require('jsonwebtoken');
 
 const authenticateToken = (req, res, next) => {
   const token = req.cookies.auth_token;
-  console.log('Token in request:', token); // This should show the token from the cookie
+  console.log('Token in request:', token); // Tämän pitäisi näyttää evästeen tunnus
+
 
   if (!token) {
     return res.status(401).json({ message: 'Unauthorized: No token provided' });
@@ -12,7 +13,8 @@ const authenticateToken = (req, res, next) => {
     if (err) {
       return res.status(403).json({ message: 'Forbidden: Invalid token' });
     }
-    req.user = user; // Attach user data to request
+    req.user = user; // Liitä käyttäjätiedot pyyntöön
+
     next();
   });
 };
