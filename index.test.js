@@ -14,9 +14,9 @@ jest.mock('pg', () => {
   const app = require('./index'); // Tuo Express-sovelluksesi
 
   
-  describe('GET /', () => {
+  describe('GET /api/products/get-products', () => {
     it('should return a 200 status and products data', async () => {
-      const response = await request(app).get('/');
+      const response = await request(app).get('/api/products/get-products');
   
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);

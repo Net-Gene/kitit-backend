@@ -36,3 +36,4 @@ if (process.env.NODE_ENV !== 'test') {
     console.log('Server running on http://localhost:3001');
   });
 }
+module.exports = app; // <-- Exports the app for testing
