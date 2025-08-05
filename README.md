@@ -1,115 +1,56 @@
-# Backend Repository for Kit-IT
+# Backend Repository for Kit-IT 🏢
 
-Tämä arkisto sisältää Kit-IT-projektin taustakoodin. Taustaosa käsittelee palvelinpuolen logiikkaa, API-reittejä ja tietokantavuorovaikutuksia.
+This repository contains the backend code for **Kit-IT**, a school project focused on building a web service platform for IT service management. 
 
----
-
-## Sisällysluettelo
-- [Käytetyt tekniikat](#käytetyt-tekniikat)
-- [Asennusohjeet](#asennusohjeet)
-- [Määritä ympäristömuuttujat](#määritä-ympäristömuuttujat)
-- [Käynnistä tietokanta](#käynnistä-tietokanta)
-- [API-reitit](#api-reitit)
-- [Projektin rakenne](#projektin-rakenne)
-- [Käynnistys](#käynnistys)
-- [Testaus](#testaus)
-- [Kokoonpano](#kokoonpano)
+This backend handles server logic, API endpoints, and database operations.
 
 ---
 
-## Käytetyt tekniikat
+## Project Summary (School Context)
 
-- **Node.js / Express**: Palvelinpuolen sovelluksen rakentamiseen.
-- **PostgreSQL**: Tietokanta sovellukselle.
-- **JWT (JSON Web Token)**: Käyttäjien todennukseen ja valtuutukseen.
-- **dotenv**: Ympäristömuuttujien hallintaan.
-- **cookie-parser**: Evästeiden käsittelyyn.
-- **cors**: Suojattujen yhteyksien sallimiseen.
-- **Jest**: Testaustyökalu.
+Kit-IT is a fictional IT service company. The project includes:
+
+- Account registration and login (JWT-based auth)
+- Appointment booking and service browsing
+- Real-time customer support via chat
+- User data and order management
+  
+---
+
+## Technologies Used
+
+- **Node.js / Express** – Server-side logic
+- **PostgreSQL** – Relational database
+- **JWT** – Authentication
+- **dotenv, cookie-parser, cors** – Environment & security tools
+- **Jest** – Unit testing
 
 ---
 
-## Asennusohjeet
+## Getting Started
 
-### 1. Kloonaa arkisto
+1. Clone the repo:
+
 ```bash
 git clone <repository-url>
 cd main
 ```
 
-### 2. Asenna riippuvuudet
+2. Install dependencies:
+
 ```bash
 npm install
 ```
 
-## Määritä ympäristömuuttujat
-Luo .env-tiedosto juurihakemistoon ja aseta seuraavat muuttujat:
+3. Create `.env` file:
 
-```makefile
-DATABASE_URL=<tietokantasi-url>
-JWT_SECRET=<salainen-avaimesi>
-PORTTI=<oma-portti>
+```env
+DATABASE_URL=<your-database-url>
+JWT_SECRET=<your-secret>
+PORT=<your-port>
 ```
 
-## Käynnistä tietokanta
-Varmista, että PostgreSQL-palvelu on käynnissä ja ympäristömuuttujat on asetettu oikein tietokantayhteyttä varten.
-
-# Backend Repository for Kit-IT
-
-Tämä arkisto sisältää Kit-IT-projektin taustakoodin, joka käsittelee palvelinpuolen logiikkaa, API-reittejä ja tietokantavuorovaikutuksia.
-
----
-
-## API-reitit
-
-Tausta tarjoaa seuraavat API-reitit:
-
-### Todennusreitit (/api/auth)
-- **POST /login**: Kirjautuminen käyttäjänä.
-- **POST /register**: Uuden käyttäjän rekisteröinti.
-- **POST /clearCookie**: Kirjautumisen uloskirjautuminen ja evästeiden tyhjennys.
-
-**Erityistiedot JWT-asetuksista:**
-- Evästeet vanhenevat tunnin sisällä.
-- Evästeiden tyhjennykselle on oma reitti, jota frontend käyttää käyttäjän poistaessa tilinsä tai kirjautuessa ulos.
-
-### Käyttäjäreitit (/api/user)
-- Käyttäjäprofiilin ja -tietojen hallintaan liittyvät reitit.
-
-### Tuotereitit (/api/products)
-- Tuotteiden hakemiseen ja hallintaan liittyvät reitit.
-
-### Ajanvarausreitit (/api/appointments)
-- Ajanvarausten hallintaan.
-  - **Validointisäännöt**: Ajanvarauksia ei voi tehdä ajalle, joka on jo varattu.
-
----
-
-## Projektin rakenne
-
-Projektin kansiorakenne on seuraava:
-
-```bash
-main/
-├── .github/workflows/npm-publish.yml
-├── config/db.js             # Tietokantayhteyden määrittely
-├── controllers/             # Reittien ohjaimet
-├── middlewares/             # Välimääritykset (esim. token-tarkastus)
-├── models/                  # Tietokantamallit
-├── routes/                  # Sovelluksen reitit
-├── services/                # Liiketoimintalogiikka
-├── index.js                 # Sovelluksen pääpiste
-├── index.test.js            # Testitiedosto
-├── jest.config.js           # Jestin määritykset
-├── .eslintrc.json           # ESLint-määritykset
-├── package.json             # Projektin riippuvuudet ja skriptit
-└── package-lock.json        # Tarkka riippuvuuksien hallinta
-```
----
-
-## Käynnistys
-
-Suorita käynnistys komennolla:
+4. Start the server:
 
 ```bash
 npm start
@@ -117,31 +58,27 @@ npm start
 
 ---
 
-## Testaus
+## API Routes
 
-Suorita yksikkötestit komennolla:
+### `/api/auth`
+- `POST /login` – Login
+- `POST /register` – Register
+- `POST /clearCookie` – Logout
 
-```bash
-npm test
-```
+### `/api/user`
+- Manage user data
 
-Testauksen tila:
+### `/api/products`
+- View/manage products
 
-Testaus kattaa backend-järjestelmän pintatoiminnot.
-Syvällisempi testaus ei ole tällä hetkellä toteutettu.
+### `/api/appointments`
+- Bookings (with time validation)
 
 ---
 
-## Kokoonpano
+## CI/CD
 
-### ESLint
+GitHub Actions automates simple testing and simple npm publishing on pull requests.
 
-Voit tarkistaa koodin tyyli- ja laatuongelmat seuraavasti:
+> ⚠️ This project is part of a **school assignment** intended for learning and educational purposes only. It is **not intended for real-world business use** and is not in active production.
 
-```bash
-npm run lint
-```
-
-### CI/CD
-
-GitHub Actions on määritetty julkaisemaan npm-paketit automaattisesti pull request -tapahtumissa. Muista päivittää package.json ennen PR:n lähettämistä.
