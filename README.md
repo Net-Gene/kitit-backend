@@ -80,5 +80,10 @@ npm start
 
 GitHub Actions automates simple testing and simple npm publishing on pull requests.
 
+---
+
+## Contributor  
+[jhalmekosk](https://github.com/jhalmeko)
+
 > ⚠️ This project is part of a **school assignment** intended for learning and educational purposes only. It is **not intended for real-world business use** and is not in active production.
 
